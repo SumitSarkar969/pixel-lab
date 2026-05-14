@@ -22,8 +22,10 @@ const METHOD_CATEGORIES = [
       { id: 'log',       name: 'Log transform',       badge: 'LOG'     },
       { id: 'gamma',     name: 'Gamma correction',    badge: 'γ'       },
       { id: 'threshold', name: 'Threshold',           badge: 'BIN'     },
-      { id: 'bit-plane', name: 'Bit-plane slice',     badge: 'BIT'     },
-      { id: 'contrast',  name: 'Contrast stretching', badge: 'STRETCH' },
+      { id: 'bit-plane',  name: 'Bit-plane slice',     badge: 'BIT'     },
+      { id: 'contrast',   name: 'Contrast stretching', badge: 'STRETCH' },
+      { id: 'piecewise',  name: 'Piecewise linear',    badge: 'PWL'     },
+      { id: 'gray-slice', name: 'Gray-level slicing',  badge: 'SLICE'   },
     ],
   },
   {

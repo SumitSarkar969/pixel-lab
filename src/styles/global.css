@@ -18,9 +18,15 @@ body {
 
 .main {
   display: grid;
-  grid-template-columns: 240px 1fr 340px;
+  grid-template-columns: 240px 5px 1fr 5px 340px;
   overflow: hidden;
   background: var(--bg-0);
+}
+
+.resizer {
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
 }
 
 .right-col {

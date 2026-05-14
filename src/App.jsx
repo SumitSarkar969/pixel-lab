@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import Icon from './components/icons.jsx'
 import MenuBar from './components/MenuBar.jsx'
 import MethodsSidebar from './components/MethodsSidebar.jsx'
@@ -28,6 +28,26 @@ export default function App() {
 
   const [imgSrc,  setImgSrc]  = useState('/assets/sample-cameraman.svg')
   const [imgName, setImgName] = useState('cameraman.tif')
+
+  const [leftW,  setLeftW]  = useState(240)
+  const [rightW, setRightW] = useState(340)
+  const drag = useRef(null)
+
+  const onResizeDown = (which) => (e) => {
+    e.currentTarget.setPointerCapture(e.pointerId)
+    drag.current = { which, startX: e.clientX, start: which === 'left' ? leftW : rightW }
+  }
+  const onResizeMove = (e) => {
+    if (!drag.current) return
+    const { which, startX, start } = drag.current
+    const dx = e.clientX - startX
+    if (which === 'left')  setLeftW(Math.max(180, Math.min(480, start + dx)))
+    else                   setRightW(Math.max(260, Math.min(560, start - dx)))
+  }
+  const onResizeUp = (e) => {
+    try { e.currentTarget.releasePointerCapture(e.pointerId) } catch (_) {}
+    drag.current = null
+  }
 
   const dftFilter =
     activeMethod?.includes('hp') ? 'hp' :
@@ -64,12 +84,20 @@ export default function App() {
         onSaveImage={handleSaveImage}
       />
 
-      <div className="main">
+      <div className="main" style={{ gridTemplateColumns: `${leftW}px 5px 1fr 5px ${rightW}px` }}>
         <MethodsSidebar
           openCategories={openCategories}
           onToggleCategory={toggleCategory}
           activeMethod={activeMethod}
           onSelectMethod={selectMethod}
+        />
+
+        <div
+          className="resizer"
+          onPointerDown={onResizeDown('left')}
+          onPointerMove={onResizeMove}
+          onPointerUp={onResizeUp}
+          onPointerCancel={onResizeUp}
         />
 
         <CanvasArea
@@ -80,6 +108,14 @@ export default function App() {
           onCompareChange={setCompareMode}
           tool={tool}
           onToolChange={setTool}
+        />
+
+        <div
+          className="resizer"
+          onPointerDown={onResizeDown('right')}
+          onPointerMove={onResizeMove}
+          onPointerUp={onResizeUp}
+          onPointerCancel={onResizeUp}
         />
 
         <div className="right-col">
