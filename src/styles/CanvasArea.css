@@ -78,25 +78,25 @@
 }
 .image-frame .img-wrap {
   position: relative;
-  width: 520px;
-  aspect-ratio: 4 / 3;
-  background-size: cover;
-  background-position: center;
+  background-size: 100% 100%;
   filter: grayscale(100%) contrast(1.05);
 }
 .image-frame .label {
-  position: absolute; top: 8px; left: 8px;
-  font: 500 10px var(--font-mono); letter-spacing: 0.08em; text-transform: uppercase;
+  position: absolute;
+  top: calc(var(--frame-min, 390px) * 0.02);
+  left: calc(var(--frame-min, 390px) * 0.02);
+  font-family: var(--font-mono); font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+  font-size: clamp(9px, calc(var(--frame-min, 390px) * 0.027), 14px);
+  padding: calc(var(--frame-min, 390px) * 0.008) calc(var(--frame-min, 390px) * 0.016);
+  border-radius: calc(var(--frame-min, 390px) * 0.005);
   color: var(--fg-0);
   background: rgba(8,8,10,0.78); backdrop-filter: blur(8px);
   border: 1px solid var(--border-2);
-  padding: 3px 6px; border-radius: 2px;
 }
-.image-frame .label.r { left: auto; right: 8px; color: var(--accent); }
+.image-frame .label.r { left: auto; right: calc(var(--frame-min, 390px) * 0.02); color: var(--accent); }
 
 .split-box {
   position: relative;
-  width: 520px; height: 390px;
   overflow: hidden;
 }
 .sp-img {
@@ -128,3 +128,32 @@
   background: transparent; border: 0; cursor: pointer; border-radius: 2px;
 }
 .canvas-overlay .b:hover { background: var(--bg-4); color: var(--fg-0); }
+
+.drop-overlay {
+  position: absolute; inset: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10, 10, 12, 0.72);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+.drop-box {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 32px 48px;
+  border: 1.5px dashed var(--accent);
+  border-radius: 8px;
+  color: var(--accent);
+}
+.drop-box span {
+  font: 500 13px var(--font-sans);
+  letter-spacing: 0.04em;
+}
+
+.canvas-empty {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.canvas-empty span {
+  font: 13px var(--font-sans); color: var(--fg-3);
+  letter-spacing: 0.02em;
+}

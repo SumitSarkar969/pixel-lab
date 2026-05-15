@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import Icon from './components/icons.jsx'
 import MenuBar from './components/MenuBar.jsx'
 import MethodsSidebar from './components/MethodsSidebar.jsx'
@@ -6,6 +6,7 @@ import CanvasArea from './components/CanvasArea.jsx'
 import ScopePanel from './components/ScopePanel.jsx'
 import ControlsPanel from './components/ControlsPanel.jsx'
 import StatusBar from './components/StatusBar.jsx'
+import { usePyodide } from './hooks/usePyodide.js'
 import './styles/global.css'
 
 const HISTORY = [
@@ -26,8 +27,37 @@ export default function App() {
 
   const [currentHistoryIdx, setCurrentHistoryIdx] = useState(2)
 
-  const [imgSrc,  setImgSrc]  = useState('/assets/sample-cameraman.svg')
-  const [imgName, setImgName] = useState('cameraman.tif')
+  const [imgSrc,  setImgSrc]  = useState(null)
+  const [imgName, setImgName] = useState(null)
+
+  const [processedSrc, setProcessedSrc] = useState(null)
+  const [applying,     setApplying]     = useState(false)
+  const [applyError,   setApplyError]   = useState(null)
+
+  const [imgHistogram,       setImgHistogram]       = useState(null)
+  const [processedHistogram, setProcessedHistogram] = useState(null)
+  const [imgDimensions,      setImgDimensions]      = useState(null)
+  const [imgStats,           setImgStats]           = useState(null)
+  const [processedStats,     setProcessedStats]     = useState(null)
+
+  const pyodide = usePyodide()
+  const { run: pyRun } = pyodide
+
+  useEffect(() => {
+    return () => {
+      if (imgSrc && imgSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(imgSrc)
+      }
+    }
+  }, [imgSrc])
+
+  useEffect(() => {
+    return () => {
+      if (processedSrc && processedSrc.startsWith('blob:')) {
+        URL.revokeObjectURL(processedSrc)
+      }
+    }
+  }, [processedSrc])
 
   const [leftW,  setLeftW]  = useState(240)
   const [rightW, setRightW] = useState(340)
@@ -65,16 +95,47 @@ export default function App() {
     else if (cat === 'histogram') setScopeView('histogram')
   }
 
-  const handleOpenImage = (url, name) => {
-    setImgSrc(url)
+  const handleOpenImage = async (url, name) => {
     setImgName(name)
+    setProcessedSrc(null)
+    setProcessedHistogram(null)
+    setApplyError(null)
+    try {
+      const { url: gray, histogram, w, h, mean, std } = await pyRun(url, 'grayscale', {})
+      setImgSrc(gray)
+      setImgHistogram(histogram)
+      setImgDimensions({ w, h })
+      setImgStats({ mean, std })
+      setProcessedSrc(null)
+      setProcessedStats(null)
+    } catch (err) {
+      setApplyError(err.message || String(err))
+    } finally {
+      if (url.startsWith('blob:')) URL.revokeObjectURL(url)
+    }
   }
 
   const handleSaveImage = () => {
     const a = document.createElement('a')
-    a.href = imgSrc
+    a.href = processedSrc || imgSrc
     a.download = imgName
     a.click()
+  }
+
+  const handleApply = async (method, params) => {
+    if (!pyodide.ready || applying) return
+    setApplying(true)
+    setApplyError(null)
+    try {
+      const { url, histogram, mean, std } = await pyodide.run(imgSrc, method, params)
+      setProcessedSrc(url)
+      setProcessedHistogram(histogram)
+      setProcessedStats({ mean, std })
+    } catch (err) {
+      setApplyError(err.message || String(err))
+    } finally {
+      setApplying(false)
+    }
   }
 
   return (
@@ -102,12 +163,15 @@ export default function App() {
 
         <CanvasArea
           imgSrc={imgSrc}
+          processedSrc={processedSrc}
           zoom={zoom}
           onZoomChange={setZoom}
           compareMode={compareMode}
           onCompareChange={setCompareMode}
           tool={tool}
           onToolChange={setTool}
+          imgDimensions={imgDimensions}
+          onOpenImage={handleOpenImage}
         />
 
         <div
@@ -141,20 +205,25 @@ export default function App() {
             history={HISTORY}
             currentHistoryIdx={currentHistoryIdx}
             onJump={setCurrentHistoryIdx}
+            histogram={processedHistogram ?? imgHistogram}
+            imgDimensions={imgDimensions}
           />
 
-          <ControlsPanel activeMethod={activeMethod} />
+          <ControlsPanel
+            activeMethod={activeMethod}
+            onApply={handleApply}
+            applying={applying}
+            pyodideStatus={pyodide.status}
+            pyodideError={pyodide.error}
+            applyError={applyError}
+          />
         </div>
       </div>
 
       <StatusBar
-        width="512"
-        height="512"
-        depth="8"
-        sampleValue={142}
-        mean={118}
-        std={62.4}
-        docSize="262 KB"
+        imgName={imgName}
+        imgDimensions={imgDimensions}
+        imgStats={processedStats ?? imgStats}
       />
     </div>
   )

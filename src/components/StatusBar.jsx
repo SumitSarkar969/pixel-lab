@@ -1,25 +1,27 @@
 import '../styles/StatusBar.css'
 
-export default function StatusBar({ width, height, depth, sampleValue, mean, std, docSize }) {
-  const greyHex = '#' + sampleValue.toString(16).padStart(2, '0').repeat(3)
+function fmtSize(w, h) {
+  const bytes = w * h
+  if (bytes >= 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB'
+  return Math.round(bytes / 1024) + ' KB'
+}
+
+export default function StatusBar({ imgName, imgDimensions, imgStats }) {
+  const hasImage = !!imgDimensions
+
   return (
     <div className="statusbar">
-      <span>{width} × {height} px</span>
+      <span>{imgName ?? 'No image'}</span>
       <span className="sep" />
-      <span>{depth}-BIT · GREY</span>
+      <span>{hasImage ? `${imgDimensions.w} × ${imgDimensions.h} px` : '— × —'}</span>
       <span className="sep" />
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        <span className="swatch" style={{ background: greyHex }} />
-        <span>L {sampleValue}</span>
-        <span style={{ color: 'var(--fg-3)' }}>·</span>
-        <span>{(sampleValue / 255).toFixed(3)}</span>
-      </span>
+      <span>8-BIT · GREY</span>
       <span className="sep" />
-      <span>μ {mean}</span>
+      <span>μ {imgStats ? imgStats.mean : '—'}</span>
       <span style={{ color: 'var(--fg-3)' }}>·</span>
-      <span>σ {std}</span>
+      <span>σ {imgStats ? imgStats.std : '—'}</span>
       <span style={{ flex: 1 }} />
-      <span>Doc {docSize}</span>
+      <span>Doc {hasImage ? fmtSize(imgDimensions.w, imgDimensions.h) : '—'}</span>
       <span className="sep" />
       <span style={{ color: 'var(--success)' }}>● GPU</span>
     </div>

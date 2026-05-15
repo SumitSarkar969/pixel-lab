@@ -2,14 +2,19 @@ import { useRef, useState, useEffect } from 'react'
 import '../styles/CanvasArea.css'
 import Icon from './icons.jsx'
 
-const BASE_W = 520
-const BASE_H = 390
+const FALLBACK_W = 520
+const FALLBACK_H = 390
 const ZOOM_PRESETS = [25, 50, 75, 100, 125, 150, 200, 300]
 
 const clampZoom = (z) => Math.max(0.05, Math.min(8, +z.toFixed(2)))
 
-export default function CanvasArea({ imgSrc, zoom, onZoomChange, compareMode, onCompareChange, tool, onToolChange }) {
+export default function CanvasArea({ imgSrc, processedSrc, zoom, onZoomChange, compareMode, onCompareChange, tool, onToolChange, imgDimensions, onOpenImage }) {
+  const afterSrc = processedSrc || imgSrc
+  const frameW = imgDimensions?.w ?? FALLBACK_W
+  const frameH = imgDimensions?.h ?? FALLBACK_H
   const stageRef     = useRef(null)
+  const dragCountRef = useRef(0)
+  const [isDragOver, setIsDragOver] = useState(false)
   const zoomInputRef = useRef(null)
   const splitRef     = useRef(null)
   const splitDragging = useRef(false)
@@ -25,10 +30,25 @@ export default function CanvasArea({ imgSrc, zoom, onZoomChange, compareMode, on
   const panDragging  = useRef(false)
   const panStartRef  = useRef({ x: 0, y: 0 })
   const panOriginRef = useRef({ x: 0, y: 0 })
-  const zoomRef  = useRef(zoom)
-  const panXYRef = useRef(panXY)
-  useEffect(() => { zoomRef.current = zoom },   [zoom])
-  useEffect(() => { panXYRef.current = panXY }, [panXY])
+  const zoomRef        = useRef(zoom)
+  const panXYRef       = useRef(panXY)
+  const compareModeRef = useRef(compareMode)
+  useEffect(() => { zoomRef.current = zoom },             [zoom])
+  useEffect(() => { panXYRef.current = panXY },           [panXY])
+  useEffect(() => { compareModeRef.current = compareMode }, [compareMode])
+
+  const fitToStage = (s) => {
+    const isSide = compareModeRef.current === 'side'
+    const totalW = isSide ? frameW * 2 + 12 : frameW
+    onZoomChange(clampZoom(Math.min((s.clientWidth - 60) / totalW, (s.clientHeight - 60) / frameH)))
+    setPanXY({ x: 0, y: 0 })
+  }
+
+  useEffect(() => {
+    const s = stageRef.current
+    if (!s || !imgDimensions) return
+    fitToStage(s)
+  }, [imgDimensions])  // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (zoomEditing) zoomInputRef.current?.select()
@@ -84,13 +104,11 @@ export default function CanvasArea({ imgSrc, zoom, onZoomChange, compareMode, on
   }
 
   const handleFit     = () => {
-    if (compareMode === 'side') { onZoomChange(1); setPanXY({ x: 0, y: 0 }); return }
     const s = stageRef.current
     if (!s) return
-    onZoomChange(clampZoom(Math.min((s.clientWidth - 60) / BASE_W, (s.clientHeight - 60) / BASE_H)))
-    setPanXY({ x: 0, y: 0 })
+    fitToStage(s)
   }
-  const handleFull    = () => { onZoomChange(1); setPanXY({ x: 0, y: 0 }) }
+
   const handleZoomIn  = () => onZoomChange(clampZoom(zoom * 1.25))
   const handleZoomOut = () => onZoomChange(clampZoom(zoom / 1.25))
 
@@ -110,6 +128,27 @@ export default function CanvasArea({ imgSrc, zoom, onZoomChange, compareMode, on
     if (e.key === 'Escape') setZoomEditing(false)
   }
   const selectPreset = (pct) => { onZoomChange(pct / 100); setZoomDropOpen(false) }
+
+  const handleDragEnter = (e) => {
+    e.preventDefault()
+    dragCountRef.current++
+    if (e.dataTransfer.types.includes('Files')) setIsDragOver(true)
+  }
+  const handleDragLeave = (e) => {
+    e.preventDefault()
+    dragCountRef.current--
+    if (dragCountRef.current === 0) setIsDragOver(false)
+  }
+  const handleDragOver = (e) => { e.preventDefault() }
+  const handleDrop = (e) => {
+    e.preventDefault()
+    dragCountRef.current = 0
+    setIsDragOver(false)
+    const file = e.dataTransfer.files[0]
+    if (file && file.type.startsWith('image/')) {
+      onOpenImage(URL.createObjectURL(file), file.name)
+    }
+  }
 
   return (
     <div className="canvas-wrap">
@@ -150,7 +189,6 @@ export default function CanvasArea({ imgSrc, zoom, onZoomChange, compareMode, on
         </div>
 
         <span className="ico" title="Fit"  onClick={handleFit}><Icon name="maximize" size={14} /></span>
-        <span className="ico" title="100%" onClick={handleFull}><Icon name="minimize" size={14} /></span>
 
         <div className="compare-toggle">
           <button className={compareMode === 'after'  ? 'active' : ''} onClick={() => onCompareChange('after')}>After</button>
@@ -164,25 +202,42 @@ export default function CanvasArea({ imgSrc, zoom, onZoomChange, compareMode, on
         className="canvas-stage"
         ref={stageRef}
         onMouseDown={handleStageMouseDown}
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
         style={{ cursor: tool === 'hand' ? (panning ? 'grabbing' : 'grab') : undefined }}
       >
+        {isDragOver && (
+          <div className="drop-overlay">
+            <div className="drop-box">
+              <Icon name="folder" size={22} />
+              <span>Drop image to open</span>
+            </div>
+          </div>
+        )}
+        {!imgSrc ? (
+          <div className="canvas-empty">
+            <span>Open an image to get started</span>
+          </div>
+        ) : (
         <div style={{ transform: `translate(${panXY.x}px, ${panXY.y}px) scale(${zoom})`, transformOrigin: 'center center' }}>
           {compareMode === 'side' ? (
             <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-              <div className="image-frame">
-                <div className="img-wrap" style={{ backgroundImage: `url(${imgSrc})` }} />
+              <div className="image-frame" style={{ '--frame-min': `${Math.min(frameW, frameH)}px` }}>
+                <div className="img-wrap" style={{ width: frameW, height: frameH, backgroundImage: `url(${imgSrc})` }} />
                 <span className="label">Before</span>
               </div>
-              <div className="image-frame">
-                <div className="img-wrap" style={{ backgroundImage: `url(${imgSrc})`, filter: 'grayscale(100%) contrast(1.25) brightness(1.04)' }} />
+              <div className="image-frame" style={{ '--frame-min': `${Math.min(frameW, frameH)}px` }}>
+                <div className="img-wrap" style={{ width: frameW, height: frameH, backgroundImage: `url(${afterSrc})` }} />
                 <span className="label r">After</span>
               </div>
             </div>
           ) : compareMode === 'split' ? (
-            <div className="image-frame">
-              <div className="split-box" ref={splitRef}>
-                <div className="sp-img" style={{ backgroundImage: `url(${imgSrc})`, filter: 'grayscale(100%) contrast(1.0)' }} />
-                <div className="sp-img" style={{ backgroundImage: `url(${imgSrc})`, filter: 'grayscale(100%) contrast(1.25) brightness(1.04)', clipPath: `inset(0 0 0 ${splitPos}%)` }} />
+            <div className="image-frame" style={{ '--frame-min': `${Math.min(frameW, frameH)}px` }}>
+              <div className="split-box" ref={splitRef} style={{ width: frameW, height: frameH }}>
+                <div className="sp-img" style={{ backgroundImage: `url(${imgSrc})` }} />
+                <div className="sp-img" style={{ backgroundImage: `url(${afterSrc})`, clipPath: `inset(0 0 0 ${splitPos}%)` }} />
                 <div
                   className="split-handle"
                   style={{ left: `${splitPos}%` }}
@@ -195,21 +250,19 @@ export default function CanvasArea({ imgSrc, zoom, onZoomChange, compareMode, on
               </div>
             </div>
           ) : (
-            <div className="image-frame">
+            <div className="image-frame" style={{ '--frame-min': `${Math.min(frameW, frameH)}px` }}>
               <div className="img-wrap" style={{
-                backgroundImage: `url(${imgSrc})`,
-                filter: compareMode === 'before'
-                  ? 'grayscale(100%) contrast(1.0)'
-                  : 'grayscale(100%) contrast(1.25) brightness(1.04)',
+                width: frameW, height: frameH,
+                backgroundImage: `url(${compareMode === 'before' ? imgSrc : afterSrc})`,
               }} />
               <span className="label">{compareMode === 'before' ? 'Before' : 'After'}</span>
             </div>
           )}
         </div>
+        )}
 
         <div className="canvas-overlay">
           <button className="b" onClick={handleFit}><Icon name="zoom" size={11} /> Fit</button>
-          <button className="b" onClick={handleFull}>100%</button>
           <button className="b" onClick={handleZoomIn}><Icon name="plus" size={11} /></button>
           <button className="b" onClick={handleZoomOut}><Icon name="minus" size={11} /></button>
           <span style={{ width: 1, background: 'var(--border-1)', margin: '0 2px' }} />
