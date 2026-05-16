@@ -695,38 +695,45 @@ const FALLBACK = {
 export default function ControlsPanel({
   activeMethod,
   onApply,
+  onPreview,
   applying = false,
+  hasImage = false,
   pyodideStatus = 'ready',
   pyodideError = null,
   applyError = null,
 }) {
   const cfg = METHOD_CONFIGS[activeMethod] || FALLBACK
 
-  // One store keyed by method id; lazily initialised from defaults on first
-  // access to that method.
   const [store, setStore] = useState({})
   const params = store[activeMethod] ?? cfg.defaults
 
-  // Make sure the store has an entry for the active method so child controls
-  // observe a stable object reference when they read params back.
+  const [livePreview] = useState(true)
+  const onPreviewRef  = useRef(onPreview)
+  useEffect(() => { onPreviewRef.current = onPreview }, [onPreview])
+
   useEffect(() => {
     if (!store[activeMethod]) {
       setStore((s) => ({ ...s, [activeMethod]: cfg.defaults }))
     }
   }, [activeMethod, cfg.defaults, store])
 
-  // `setParam(key, value)` is the common path; passing key=null replaces the
-  // whole params object (used by the curve/dot draggers).
+  // Preview when switching methods
+  useEffect(() => {
+    if (!livePreview) return
+    onPreviewRef.current?.(activeMethod, store[activeMethod] ?? cfg.defaults)
+  }, [activeMethod])  // eslint-disable-line react-hooks/exhaustive-deps
+
+
   const setParam = (key, value) => {
-    setStore((s) => {
-      const current = s[activeMethod] ?? cfg.defaults
-      const next = key === null ? value : { ...current, [key]: value }
-      return { ...s, [activeMethod]: next }
-    })
+    const current = store[activeMethod] ?? cfg.defaults
+    const next = key === null ? value : { ...current, [key]: value }
+    setStore((s) => ({ ...s, [activeMethod]: next }))
+    if (livePreview) onPreviewRef.current?.(activeMethod, next)
   }
 
   const reset = () => {
     setStore((s) => ({ ...s, [activeMethod]: cfg.defaults }))
+    if (livePreview) onPreviewRef.current?.(activeMethod, cfg.defaults)
   }
 
   const handleSectionClick = (e) => {
@@ -738,11 +745,12 @@ export default function ControlsPanel({
     onApply(activeMethod, params)
   }
 
-  const disabled = applying || pyodideStatus !== 'ready' || !onApply
+  const disabled = applying || pyodideStatus !== 'ready' || !onApply || !hasImage
   const applyLabel =
     pyodideStatus === 'loading' ? 'Loading Python…' :
     pyodideStatus === 'error'   ? 'Python unavailable' :
     applying                    ? 'Processing…' :
+    !hasImage                   ? 'No image open' :
     'Apply'
 
   return (
@@ -764,8 +772,7 @@ export default function ControlsPanel({
         >
           {applyLabel}
         </button>
-        <button className="btn default">Preview</button>
-        <button className="btn ghost" onClick={reset}><Icon name="trash" size={13}/></button>
+<button className="btn ghost" onClick={reset}><Icon name="trash" size={13}/></button>
       </div>
     </div>
   )

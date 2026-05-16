@@ -8,7 +8,7 @@ const ZOOM_PRESETS = [25, 50, 75, 100, 125, 150, 200, 300]
 
 const clampZoom = (z) => Math.max(0.05, Math.min(8, +z.toFixed(2)))
 
-export default function CanvasArea({ imgSrc, processedSrc, zoom, onZoomChange, compareMode, onCompareChange, tool, onToolChange, imgDimensions, onOpenImage }) {
+export default function CanvasArea({ imgSrc, processedSrc, zoom, onZoomChange, compareMode, onCompareChange, tool, onToolChange, imgDimensions, onOpenImage, jumpKey = 0 }) {
   const afterSrc = processedSrc || imgSrc
   const frameW = imgDimensions?.w ?? FALLBACK_W
   const frameH = imgDimensions?.h ?? FALLBACK_H
@@ -36,6 +36,30 @@ export default function CanvasArea({ imgSrc, processedSrc, zoom, onZoomChange, c
   useEffect(() => { zoomRef.current = zoom },             [zoom])
   useEffect(() => { panXYRef.current = panXY },           [panXY])
   useEffect(() => { compareModeRef.current = compareMode }, [compareMode])
+
+  // Keep the previous decoded image visible until the new one is fully decoded,
+  // so there's no blank-flash stutter between preview updates.
+  const [stableAfterSrc, setStableAfterSrc] = useState(null)
+  const pendingSrcRef = useRef(null)
+  useEffect(() => {
+    if (!afterSrc) { setStableAfterSrc(null); return }
+    pendingSrcRef.current = afterSrc
+    const img = new Image()
+    const settle = () => { if (pendingSrcRef.current === afterSrc) setStableAfterSrc(afterSrc) }
+    img.onload  = settle
+    img.onerror = settle
+    img.src = afterSrc
+  }, [afterSrc])
+
+  // On history jump, skip the crossfade: clear stableAfterSrc immediately so
+  // the correct historical image shows at once instead of flashing the old one.
+  useEffect(() => {
+    if (!jumpKey) return
+    pendingSrcRef.current = null
+    setStableAfterSrc(null)
+  }, [jumpKey])
+
+  const displayAfterSrc = stableAfterSrc ?? afterSrc
 
   const fitToStage = (s) => {
     const isSide = compareModeRef.current === 'side'
@@ -229,7 +253,7 @@ export default function CanvasArea({ imgSrc, processedSrc, zoom, onZoomChange, c
                 <span className="label">Before</span>
               </div>
               <div className="image-frame" style={{ '--frame-min': `${Math.min(frameW, frameH)}px` }}>
-                <div className="img-wrap" style={{ width: frameW, height: frameH, backgroundImage: `url(${afterSrc})` }} />
+                <div className="img-wrap" style={{ width: frameW, height: frameH, backgroundImage: `url(${displayAfterSrc})` }} />
                 <span className="label r">After</span>
               </div>
             </div>
@@ -237,7 +261,7 @@ export default function CanvasArea({ imgSrc, processedSrc, zoom, onZoomChange, c
             <div className="image-frame" style={{ '--frame-min': `${Math.min(frameW, frameH)}px` }}>
               <div className="split-box" ref={splitRef} style={{ width: frameW, height: frameH }}>
                 <div className="sp-img" style={{ backgroundImage: `url(${imgSrc})` }} />
-                <div className="sp-img" style={{ backgroundImage: `url(${afterSrc})`, clipPath: `inset(0 0 0 ${splitPos}%)` }} />
+                <div className="sp-img" style={{ backgroundImage: `url(${displayAfterSrc})`, clipPath: `inset(0 0 0 ${splitPos}%)` }} />
                 <div
                   className="split-handle"
                   style={{ left: `${splitPos}%` }}
@@ -253,7 +277,7 @@ export default function CanvasArea({ imgSrc, processedSrc, zoom, onZoomChange, c
             <div className="image-frame" style={{ '--frame-min': `${Math.min(frameW, frameH)}px` }}>
               <div className="img-wrap" style={{
                 width: frameW, height: frameH,
-                backgroundImage: `url(${compareMode === 'before' ? imgSrc : afterSrc})`,
+                backgroundImage: `url(${compareMode === 'before' ? imgSrc : displayAfterSrc})`,
               }} />
               <span className="label">{compareMode === 'before' ? 'Before' : 'After'}</span>
             </div>
