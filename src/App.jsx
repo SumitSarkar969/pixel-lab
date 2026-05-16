@@ -50,8 +50,8 @@ export default function App() {
   const [compareMode, setCompareMode] = useState('after')
   const [scopeView,   setScopeView]   = useState('histogram')
 
-  const [openCategories, setOpenCategories] = useState(['histogram', 'spatial'])
-  const [activeMethod,   setActiveMethod]   = useState('gaussian')
+  const [openCategories, setOpenCategories] = useState(['point'])
+  const [activeMethod,   setActiveMethod]   = useState('negative')
 
   const [history,          setHistory]          = useState([])
   const [currentHistoryIdx, setCurrentHistoryIdx] = useState(-1)

@@ -52,9 +52,6 @@ export default function MenuBar({ onOpenImage, onSaveImage }) {
       <input ref={fileInputRef} type="file" accept="image/*"
         style={{ display: 'none' }} onChange={handleFileChange} />
 
-      <span className="spacer" />
-
-      <span className="profile">Display P3 · 16-bit</span>
     </div>
   )
 }

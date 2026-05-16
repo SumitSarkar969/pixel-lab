@@ -22,8 +22,6 @@ export default function StatusBar({ imgName, imgDimensions, imgStats }) {
       <span>σ {imgStats ? imgStats.std : '—'}</span>
       <span style={{ flex: 1 }} />
       <span>Doc {hasImage ? fmtSize(imgDimensions.w, imgDimensions.h) : '—'}</span>
-      <span className="sep" />
-      <span style={{ color: 'var(--success)' }}>● GPU</span>
     </div>
   )
 }

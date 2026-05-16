@@ -14,6 +14,7 @@ export default function CanvasArea({ imgSrc, processedSrc, zoom, onZoomChange, c
   const frameH = imgDimensions?.h ?? FALLBACK_H
   const stageRef     = useRef(null)
   const dragCountRef = useRef(0)
+  const emptyFileRef = useRef(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const zoomInputRef = useRef(null)
   const splitRef     = useRef(null)
@@ -241,9 +242,22 @@ export default function CanvasArea({ imgSrc, processedSrc, zoom, onZoomChange, c
           </div>
         )}
         {!imgSrc ? (
-          <div className="canvas-empty">
-            <span>Open an image to get started</span>
-          </div>
+          <>
+            <input
+              ref={emptyFileRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const file = e.target.files[0]
+                if (file) onOpenImage(URL.createObjectURL(file), file.name)
+                e.target.value = ''
+              }}
+            />
+            <div className="canvas-empty" style={{ cursor: 'pointer' }} onMouseDown={e => e.stopPropagation()} onClick={() => emptyFileRef.current?.click()}>
+              <span>Open an image to get started</span>
+            </div>
+          </>
         ) : (
         <div style={{ transform: `translate(${panXY.x}px, ${panXY.y}px) scale(${zoom})`, transformOrigin: 'center center' }}>
           {compareMode === 'side' ? (
